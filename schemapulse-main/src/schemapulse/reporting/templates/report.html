@@ -1,0 +1,238 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>SchemaPulse report — {{ data.verdict|upper }} {{ data.speedup_display if data.speedup else '' }}</title>
+<style>
+  :root {
+    --bg: #0f1115;
+    --panel: #171a21;
+    --panel-2: #1e222b;
+    --line: #2a2f3a;
+    --fg: #e6e9ef;
+    --muted: #98a1b3;
+    --accent: #6ea8fe;
+    --green: #4ade80;
+    --amber: #fbbf24;
+    --red: #f87171;
+    --mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; padding: 0 0 64px;
+    background: var(--bg); color: var(--fg);
+    font: 15px/1.55 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  }
+  .wrap { max-width: 1080px; margin: 0 auto; padding: 0 20px; }
+  header { border-bottom: 1px solid var(--line); background: var(--panel); padding: 28px 0 22px; margin-bottom: 26px; }
+  h1 { margin: 0 0 6px; font-size: 24px; letter-spacing: -0.2px; }
+  h1 .tag { color: var(--muted); font-weight: 400; font-size: 15px; }
+  h2 { font-size: 15px; text-transform: uppercase; letter-spacing: 0.7px; color: var(--muted);
+       margin: 30px 0 12px; font-weight: 600; }
+  .sub { color: var(--muted); font-size: 13px; }
+  .verdict { display: inline-block; padding: 5px 14px; border-radius: 6px; font-weight: 700;
+             font-size: 13px; letter-spacing: 1px; }
+  .v-VERIFIED { background: rgba(74,222,128,.15); color: var(--green); border: 1px solid rgba(74,222,128,.4); }
+  .v-REJECTED { background: rgba(248,113,113,.13); color: var(--red); border: 1px solid rgba(248,113,113,.35); }
+  .v-INCONCLUSIVE { background: rgba(251,191,36,.13); color: var(--amber); border: 1px solid rgba(251,191,36,.35); }
+  .v-FAILED, .v-BLOCKED { background: rgba(152,161,179,.13); color: var(--muted); border: 1px solid rgba(152,161,179,.3); }
+  .panel { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 16px 18px; }
+  .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(168px, 1fr)); gap: 12px; }
+  .stat { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 14px 16px; }
+  .stat .k { color: var(--muted); font-size: 11px; text-transform: uppercase; letter-spacing: .6px; }
+  .stat .v { font-size: 22px; font-weight: 650; margin-top: 4px; font-variant-numeric: tabular-nums; }
+  .stat .v.good { color: var(--green); }
+  .stat .v.small { font-size: 14px; font-weight: 500; word-break: break-all; }
+  pre { background: var(--panel-2); border: 1px solid var(--line); border-radius: 8px; padding: 13px 15px;
+        overflow-x: auto; font-family: var(--mono); font-size: 12.5px; line-height: 1.5; margin: 0; }
+  table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  th, td { text-align: left; padding: 7px 10px; border-bottom: 1px solid var(--line); vertical-align: top; }
+  th { color: var(--muted); font-weight: 600; font-size: 11px; text-transform: uppercase; letter-spacing: .5px; }
+  tr:last-child td { border-bottom: none; }
+  .mono { font-family: var(--mono); font-size: 12.5px; }
+  .num { text-align: right; font-variant-numeric: tabular-nums; }
+  ul.evidence { margin: 0; padding-left: 18px; }
+  ul.evidence li { margin-bottom: 5px; font-size: 13.5px; }
+  .node { font-family: var(--mono); font-size: 12.5px; }
+  .node-row { display: flex; gap: 10px; align-items: baseline; padding: 4px 0; border-bottom: 1px dashed var(--line); }
+  .node-row:last-child { border-bottom: none; }
+  .node-type { min-width: 172px; color: var(--accent); }
+  .node-rel { min-width: 108px; color: var(--fg); }
+  .node-metrics { margin-left: auto; color: var(--muted); font-size: 11.5px; white-space: nowrap; }
+  .depth-0 { padding-left: 0 } .depth-1 { padding-left: 16px } .depth-2 { padding-left: 32px }
+  .depth-3 { padding-left: 48px } .depth-4 { padding-left: 64px } .depth-5 { padding-left: 80px }
+  .bar-track { height: 8px; background: var(--panel-2); border-radius: 4px; overflow: hidden; margin-top: 6px; }
+  .bar { height: 100%; border-radius: 4px; }
+  .bar-before { background: var(--red); }
+  .bar-after { background: var(--green); }
+  .chips { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+  .chip { background: var(--panel-2); border: 1px solid var(--line); border-radius: 999px;
+          padding: 3px 10px; font-size: 11.5px; color: var(--muted); }
+  .chip.warn { color: var(--amber); border-color: rgba(251,191,36,.35); }
+  .chip.live { color: var(--green); border-color: rgba(74,222,128,.4); }
+  .chip.fake { color: var(--muted); }
+  .muted { color: var(--muted); }
+  .small { font-size: 12.5px; }
+  details { border: 1px solid var(--line); border-radius: 8px; padding: 10px 14px; background: var(--panel); }
+  details summary { cursor: pointer; color: var(--muted); font-size: 13px; }
+  .attempt { border-left: 3px solid var(--line); padding: 10px 0 10px 14px; margin-bottom: 12px; }
+  .attempt.ok { border-left-color: var(--green); }
+  .attempt.no { border-left-color: var(--red); }
+  .attempt.wait { border-left-color: var(--amber); }
+  footer { color: var(--muted); font-size: 12px; margin-top: 40px; border-top: 1px solid var(--line); padding-top: 16px; }
+  a { color: var(--accent); }
+</style>
+</head>
+<body>
+<header>
+  <div class="wrap">
+    <h1>SchemaPulse <span class="tag">· execution-verified optimization report</span></h1>
+    <div class="sub">
+      <span class="verdict v-{{ data.verdict }}">{{ data.verdict }}</span>
+      {% if data.speedup %}<strong style="margin-left:10px">{{ data.speedup_display }}</strong>{% endif %}
+      <span style="margin-left:10px">
+        {% if data.is_live %}model: <span class="mono">{{ data.provider }} / {{ data.model_id }}</span> (live call)
+        {% else %}provider: <span class="mono">{{ data.provider }}</span> (deterministic baseline, no model call){% endif %}
+      </span>
+    </div>
+    <div class="chips">
+      <span class="chip">database: {{ data.database }}</span>
+      <span class="chip">tables: {{ data.tables|join(', ') }}</span>
+      <span class="chip">threshold: {{ data.min_speedup }}x</span>
+      {% if data.is_live %}<span class="chip live">LIVE MODEL</span>{% else %}<span class="chip fake">OFFLINE FIXTURE</span>{% endif %}
+    </div>
+  </div>
+</header>
+
+<div class="wrap">
+
+  <div class="grid">
+    <div class="stat"><div class="k">Baseline</div><div class="v">{% if data.baseline_ms %}{{ '%.2f'|format(data.baseline_ms) }} ms{% else %}n/a{% endif %}</div></div>
+    <div class="stat"><div class="k">Optimized</div><div class="v good">{% if data.candidate_ms %}{{ '%.2f'|format(data.candidate_ms) }} ms{% else %}n/a{% endif %}</div></div>
+    <div class="stat"><div class="k">Speedup</div><div class="v {% if data.speedup and data.speedup >= (data.min_speedup or 1.2) %}good{% endif %}">{{ data.speedup_display }}</div></div>
+    <div class="stat"><div class="k">Rows examined</div><div class="v">{% if data.rows_examined %}{{ '{:,}'.format(data.rows_examined) }}{% else %}n/a{% endif %}</div></div>
+    <div class="stat"><div class="k">Rows returned</div><div class="v">{% if data.rows_returned is not none %}{{ '{:,}'.format(data.rows_returned) }}{% else %}n/a{% endif %}</div></div>
+  </div>
+
+  {% if data.baseline_ms and data.candidate_ms and data.candidate_ms > 0 %}
+  <div class="panel" style="margin-top:12px">
+    <div class="small muted">Measured median execution time — identical query, identical server, index absent vs present</div>
+    <div class="bar-track"><div class="bar bar-before" style="width:100%"></div></div>
+    <div class="small" style="margin-top:8px">before · {{ '%.2f'|format(data.baseline_ms) }} ms (100%)</div>
+    <div class="bar-track" style="margin-top:4px"><div class="bar bar-after" style="width:{{ (100 * data.candidate_ms / data.baseline_ms)|round(2) }}%"></div></div>
+    <div class="small" style="margin-top:8px">after · {{ '%.2f'|format(data.candidate_ms) }} ms ({{ '%.1f'|format(100 * data.candidate_ms / data.baseline_ms) }}% of baseline)</div>
+  </div>
+  {% endif %}
+
+  <h2>Query under analysis</h2>
+  <pre>{{ data.query }}</pre>
+
+  {% if data.verified_candidate %}
+  <h2>Gemma hypothesis → verified candidate</h2>
+  <div class="panel">
+    <div style="margin-bottom:10px"><strong>{{ data.verified_candidate.hypothesis }}</strong></div>
+    <pre>{{ data.verified_candidate.candidate_sql }}</pre>
+    <div class="grid" style="margin-top:14px">
+      <div class="stat"><div class="k">Expected plan change</div><div class="v small">{{ data.verified_candidate.expected_plan_change or 'n/a' }}</div></div>
+      <div class="stat"><div class="k">Model confidence <span class="muted">(advisory only)</span></div><div class="v">{{ '%.2f'|format(data.verified_candidate.model_confidence) }}</div></div>
+    </div>
+    {% if data.verified_candidate.reasoning_summary %}
+    <h2 style="margin-top:18px">Evidence cited by the model</h2>
+    <ul class="evidence"><li>{{ data.verified_candidate.reasoning_summary }}</li></ul>
+    {% endif %}
+    {% if data.verified_candidate.risk_notes %}
+    <div class="chips"><span class="chip warn">risk note</span><span class="chip">{{ data.verified_candidate.risk_notes }}</span></div>
+    {% endif %}
+  </div>
+  {% endif %}
+
+  {% if data.evidence %}
+  <h2>Verification evidence (measured, not claimed)</h2>
+  <div class="panel"><ul class="evidence">
+    {% for line in data.evidence %}<li>{{ line }}</li>{% endfor %}
+  </ul></div>
+  {% endif %}
+
+  {% if data.nodes %}
+  <h2>Baseline execution plan</h2>
+  <div class="panel">
+    <div class="small muted mono" style="margin-bottom:10px">{{ data.plan_shape }}</div>
+    {% for n in data.nodes %}
+    <div class="node-row">
+      <span class="node-type">{{ n.node_type }}</span>
+      <span class="node-rel">{% if n.relation %}{{ n.relation }}{% endif %}{% if n.index_name %}<span class="muted"> · {{ n.index_name }}</span>{% endif %}</span>
+      <span class="node-metrics">{{ '%.2f'|format(n.self_time_ms) }} ms self · est {{ '{:,}'.format(n.plan_rows) }} / act {{ '{:,}'.format(n.actual_rows) }} rows{% if n.rows_removed_by_filter %} · −{{ '{:,}'.format(n.rows_removed_by_filter) }} filtered{% endif %}</span>
+    </div>
+    {% endfor %}
+  </div>
+  {% endif %}
+
+  {% if data.hotspots %}
+  <h2>Deterministic findings (computed without the model)</h2>
+  <div class="panel">
+    <table>
+      <thead><tr><th>Severity</th><th>Finding</th><th>Detail</th><th class="num">Self time</th></tr></thead>
+      <tbody>
+      {% for h in data.hotspots %}
+        <tr>
+          <td>{% if h.severity == 'warn' %}<span style="color:var(--amber)">warn</span>{% else %}<span class="muted">info</span>{% endif %}</td>
+          <td>{{ h.title }}</td>
+          <td class="mono small">{{ h.detail }}</td>
+          <td class="num mono">{{ '%.2f'|format(h.self_time_ms) }} ms</td>
+        </tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% endif %}
+
+  {% if data.attempts %}
+  <h2>All attempts, including rejected ones</h2>
+  <div class="panel">
+    {% for a in data.attempts %}
+    <div class="attempt {% if a.verdict == 'verified' %}ok{% elif a.verdict in ['rejected','failed','blocked'] %}no{% else %}wait{% endif %}">
+      <div><strong>Attempt {{ a.attempt }}</strong> · <span class="mono">{{ a.verdict|upper }}</span>
+        {% if a.speedup %}· {{ '%.2f'|format(a.speedup) }}x{% endif %}
+        {% if a.candidate %}
+        {% set shown = a.candidate.statement or a.candidate.candidate_sql %}
+        {% if shown %}<div class="mono small" style="margin-top:5px">{{ shown }}</div>{% endif %}
+        {% endif %}
+        {% if a.verdict == 'blocked' %}
+        <div class="small muted" style="margin-top:5px">proposed by the model, refused before execution — never benchmarked</div>
+        {% endif %}
+        <div class="small" style="margin-top:5px">{{ a.reason }}</div>
+        {% if a.safety_rejections %}
+        <div class="small muted" style="margin-top:5px">safety: {{ a.safety_rejections|join(' · ') }}</div>
+        {% endif %}
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+  {% endif %}
+
+  {% if data.recommendation %}
+  <h2>Suggested production change — review, do not auto-apply</h2>
+  <div class="panel">
+    <pre>{{ data.recommendation.production_sql }}</pre>
+    <div class="small" style="margin-top:12px">{{ data.recommendation.rationale }}</div>
+    <h2 style="margin-top:18px">Operational warnings</h2>
+    <ul class="evidence">{% for w in data.recommendation.warnings %}<li>{{ w }}</li>{% endfor %}</ul>
+    <div class="chips"><span class="chip warn">auto_applied: {{ data.recommendation.auto_applied }}</span></div>
+  </div>
+  {% endif %}
+
+  <h2>Execution trace</h2>
+  <details>
+    <summary>{{ data.trace|length }} recorded events (model calls, validations, experiments)</summary>
+    <pre style="margin-top:10px">{% for e in data.trace %}{{ e }}
+{% endfor %}</pre>
+  </details>
+
+  <footer>
+    Generated by SchemaPulse v{{ version }} · every number on this page was measured by PostgreSQL ·
+    SchemaPulse never applies DDL to the inspected database.
+  </footer>
+</div>
+</body>
+</html>

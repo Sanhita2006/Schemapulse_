@@ -1,0 +1,47 @@
+{
+  "_comment": [
+    "Golden expectations for demo/slow_orders.sql against the seeded fixture.",
+    "",
+    "Timings are deliberately absent: they depend on the machine, and a golden",
+    "file that hard-codes a millisecond count either rots or gets rubber-stamped",
+    "until it rots. What is asserted instead is everything that must be true on",
+    "any machine: the plan shape, the row counts, which index wins, the verdict,",
+    "and the safety guarantees. A run whose speedup collapses on slower hardware",
+    "will fail its own threshold and say so, which is the honest outcome."
+  ],
+  "provider": "fixture",
+  "provider_is_live": false,
+  "verdict": "verified",
+  "min_speedup": 1.2,
+  "insight": {
+    "tables": ["orders", "customers"],
+    "is_select_only": true,
+    "plan_shape": "Limit -> Nested Loop -> Gather Merge -> Sort -> Seq Scan(orders) -> Memoize -> Index Scan(customers)",
+    "indexes_used": ["customers_pkey"],
+    "total_rows_examined": 1000045,
+    "total_rows_produced": 19840,
+    "node_count": 7,
+    "hotspot_codes": ["filter_waste", "seq_scan", "explicit_sort"]
+  },
+  "first_attempt": {
+    "index_name": "sp_orders_status_created_at_partial",
+    "statement": "CREATE INDEX \"sp_orders_status_created_at_partial\" ON \"orders\" (\"created_at\" DESC) WHERE \"status\" = 'pending'",
+    "table": "orders",
+    "columns": ["created_at"],
+    "predicate": "\"status\" = 'pending'",
+    "partial": true
+  },
+  "comparison": {
+    "plan_shape_changed": true,
+    "seq_scan_removed": true,
+    "sort_removed": true,
+    "added_index": "sp_orders_status_created_at_partial",
+    "rows_examined_delta": -999949
+  },
+  "safety": {
+    "target_indexes_after_run": ["orders_pkey"],
+    "shadow_indexes_after_run": ["orders_pkey"],
+    "recommendation_auto_applied": false,
+    "recommendation_is_concurrently": true
+  }
+}

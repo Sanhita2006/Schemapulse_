@@ -1,0 +1,152 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "schemapulse"
+version = "0.1.0"
+description = "Execution-Verified PostgreSQL Optimization Agent — Gemma proposes, PostgreSQL decides."
+readme = "README.md"
+requires-python = ">=3.11"
+license = { text = "Apache-2.0" }
+authors = [{ name = "SchemaPulse Contributors" }]
+keywords = [
+  "postgresql",
+  "database",
+  "index",
+  "optimizer",
+  "explain-analyze",
+  "gemma",
+  "llm",
+  "agent",
+  "benchmark",
+]
+classifiers = [
+  "Development Status :: 3 - Alpha",
+  "Intended Audience :: Developers",
+  "License :: OSI Approved :: Apache Software License",
+  "Programming Language :: Python :: 3.11",
+  "Programming Language :: Python :: 3.12",
+  "Programming Language :: Python :: 3.13",
+  "Topic :: Database",
+  "Topic :: Software Development :: Quality Assurance",
+]
+dependencies = [
+  "psycopg[binary]>=3.2.3",
+  "pydantic>=2.9.2",
+  "pydantic-settings>=2.6.0",
+  "typer>=0.15.1",
+  "rich>=13.9.4",
+  "sqlglot>=25.18.0",
+  "httpx>=0.27.2",
+  "jinja2>=3.1.4",
+  "python-dotenv>=1.0.1",
+]
+
+[project.optional-dependencies]
+dev = [
+  "pytest>=8.3.3",
+  "pytest-cov>=6.0.0",
+  "ruff>=0.8.4",
+  "mypy>=1.13.0",
+  "build>=1.2.2",
+  "types-markdown",
+]
+all = ["schemapulse[dev]"]
+
+[project.urls]
+Homepage = "https://github.com/schemapulse/schemapulse"
+Repository = "https://github.com/schemapulse/schemapulse"
+Issues = "https://github.com/schemapulse/schemapulse/issues"
+Documentation = "https://github.com/schemapulse/schemapulse/tree/main/docs"
+
+[project.scripts]
+schemapulse = "schemapulse.cli:main"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/schemapulse"]
+
+[tool.hatch.build.targets.sdist]
+include = [
+  "src/schemapulse",
+  "demo",
+  "docs",
+  "tests",
+  "README.md",
+  "ARCHITECTURE.md",
+  "CONTRIBUTING.md",
+  "CODE_OF_CONDUCT.md",
+  "SECURITY.md",
+  "ROADMAP.md",
+  "LICENSE",
+  "Makefile",
+  "docker-compose.yml",
+  ".env.example",
+]
+
+# --------------------------------------------------------------------------- #
+# ruff
+# --------------------------------------------------------------------------- #
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+src = ["src", "tests"]
+exclude = [".venv", "build", "dist", ".ruff_cache"]
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "UP", "B", "C4", "SIM", "RUF"]
+ignore = [
+  "E501",    # long lines handled by formatter
+  "B008",    # typer uses function calls in defaults
+  "SIM105",  # contextlib.suppress is not always clearer
+  "RUF001",  # ambiguous unicode in strings
+  "RUF002",
+  "RUF003",
+]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/*" = ["S101"]
+
+[tool.ruff.lint.isort]
+known-first-party = ["schemapulse"]
+
+# --------------------------------------------------------------------------- #
+# mypy
+# --------------------------------------------------------------------------- #
+[tool.mypy]
+python_version = "3.11"
+files = ["src/schemapulse"]
+strict = false
+warn_unused_configs = true
+warn_redundant_casts = true
+warn_unused_ignores = true
+no_implicit_optional = true
+check_untyped_defs = true
+disallow_untyped_defs = false
+disallow_incomplete_defs = false
+show_error_codes = true
+pretty = true
+plugins = ["pydantic.mypy"]
+
+[[tool.mypy.overrides]]
+module = ["sqlglot.*", "typer.*", "rich.*"]
+ignore_missing_imports = true
+
+# --------------------------------------------------------------------------- #
+# pytest
+# --------------------------------------------------------------------------- #
+[tool.pytest.ini_options]
+minversion = "8.0"
+testpaths = ["tests"]
+addopts = [
+  "-ra",
+  "--strict-markers",
+  "--strict-config",
+]
+markers = [
+  "integration: requires a live PostgreSQL demo environment (docker compose up -d)",
+  "live_model: requires a real Gemma provider (Gemini API key or local Ollama)",
+]
+filterwarnings = [
+  "ignore::DeprecationWarning",
+]

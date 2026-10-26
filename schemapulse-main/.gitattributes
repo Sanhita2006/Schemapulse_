@@ -1,0 +1,24 @@
+# Normalize line endings so diffs are not whole-file rewrites on Windows.
+* text=auto
+
+*.py    text diff=python
+*.md    text
+*.toml  text
+*.sql   text
+*.yml   text
+*.html  text
+Makefile text
+.gitignore text
+.env.example text
+
+# Never rewrite these; they must stay byte-for-byte.
+LICENSE text
+
+# Binary assets.
+*.png  binary
+*.jpg  binary
+*.gif  binary
+*.ico  binary
+*.gguf binary
+*.whl  binary
+*.gz   binary

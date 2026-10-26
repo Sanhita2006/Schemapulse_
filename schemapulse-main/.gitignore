@@ -1,0 +1,52 @@
+# ---- secrets -------------------------------------------------------------
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+
+# ---- python --------------------------------------------------------------
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+dist/
+*.egg-info/
+.eggs/
+pip-wheel-metadata/
+.venv/
+venv/
+env/
+ENV/
+
+# ---- caches --------------------------------------------------------------
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+.coverage
+.coverage.*
+htmlcov/
+coverage.xml
+uv.lock.bak
+
+# ---- schemapulse artifacts ----------------------------------------------
+.schemapulse/
+reports/
+*.report.html
+benchmark-results/
+demo/.seeded
+docs/_build
+
+# ---- editors / os --------------------------------------------------------
+.idea/
+.vscode/
+*.swp
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# ---- llm -----------------------------------------------------------------
+*.gguf
+models/

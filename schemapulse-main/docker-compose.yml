@@ -1,0 +1,67 @@
+name: schemapulse
+
+services:
+  # ---------------------------------------------------------------------------
+  # Target database — the "production-like" database that SchemaPulse inspects.
+  # It is READ-ONLY for SchemaPulse's purposes: only EXPLAIN (ANALYZE) and
+  # catalog queries are ever issued against it.
+  # ---------------------------------------------------------------------------
+  schemapulse-baseline:
+    image: postgres:16-alpine
+    container_name: schemapulse-baseline
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: schemapulse
+      # Keep planner output stable and comparable between the two servers.
+      POSTGRES_INITDB_ARGS: "--data-checksums"
+    ports:
+      - "5432:5432"
+    command:
+      - postgres
+      - -c
+      - max_connections=100
+      - -c
+      - shared_buffers=256MB
+      - -c
+      - work_mem=16MB
+      - -c
+      - track_io_timing=on
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d schemapulse"]
+      interval: 3s
+      timeout: 3s
+      retries: 20
+    tmpfs:
+      - /var/lib/postgresql/data
+
+  # ---------------------------------------------------------------------------
+  # Shadow database — a DISPOSABLE environment that SchemaPulse is allowed to
+  # mutate. Every candidate DDL from the model lands here and nowhere else.
+  # ---------------------------------------------------------------------------
+  schemapulse-shadow:
+    image: postgres:16-alpine
+    container_name: schemapulse-shadow
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: schemapulse
+    ports:
+      - "5433:5432"
+    command:
+      - postgres
+      - -c
+      - max_connections=100
+      - -c
+      - shared_buffers=256MB
+      - -c
+      - work_mem=16MB
+      - -c
+      - track_io_timing=on
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d schemapulse"]
+      interval: 3s
+      timeout: 3s
+      retries: 20
+    tmpfs:
+      - /var/lib/postgresql/data
